@@ -53,7 +53,33 @@ def mirror(name):
 
 @app.route("/shows", methods=['GET'])
 def get_all_shows():
-    return create_response({"shows": db.get('shows')})
+    if request.args.get('minEpisodes'):
+        res = list(filter(lambda s: s["episodes_seen"] >= int(request.args.get('minEpisodes')), db.get('shows')))
+        if res:
+            return create_response({"shows": res})
+        else:
+            return create_response(status=404, message="No shows with with at least the minimum episodes")
+    else:
+        return create_response({"shows": db.get('shows')})
+
+
+@app.route("/shows", methods=['POST'])
+def create_show():
+    received = request.get_json()
+    if received.get("name") is None:
+        return create_response(status=422, message="No name provided in shows POST request")
+    elif received.get("episodes_seen") is None:
+        return create_response(status=422, message="No number of episodes seen provided in shows POST request")
+    else:
+        data = db.create('shows', {"name": received["name"], "episodes_seen": received["episodes_seen"]})
+        return create_response(status=201, message="", data=data)
+
+
+@app.route("/shows/<id>", methods=['GET'])
+def get_show(id):
+    if db.getById('shows', int(id)) is None:
+        return create_response(status=404, message="No show with this id exists")
+    return create_response(status=200, message="", data=db.getById('shows', int(id)))
 
 @app.route("/shows/<id>", methods=['DELETE'])
 def delete_show(id):
@@ -61,6 +87,16 @@ def delete_show(id):
         return create_response(status=404, message="No show with this id exists")
     db.deleteById('shows', int(id))
     return create_response(message="Show deleted")
+
+@app.route("/shows/<id>", methods=['PUT'])
+def put_show(id): 
+    updated_item = db.updateById('shows', id, request.get_json())
+    if updated_item is None:
+        return create_response(status=404, message="No show with this id exists")
+    else:
+        return create_response(status=201, message="", data=updated_item)
+
+
 
 
 # TODO: Implement the rest of the API here!
